@@ -1,6 +1,6 @@
 # 🚀 Enterprise BGP Simulator v2.0 Walkthrough
 
-We upgraded the **BGP Engine & Decision Simulator** in `/Users/smoradi/Shahram/mylab/Ai-lab` with sub-second BFD failover, Ansible/RESTCONF automation payload code viewer, SevOne SNMP Traps & Telemetry simulation, Route Reflector (RR) topology with R4 and R5, and MP-BGP VPNv4 VRF multi-tenancy. All documentation is stored in [`bgp_simulator_docs/`](file:///Users/smoradi/Shahram/mylab/Ai-lab/bgp_simulator_docs/).
+We upgraded the **BGP Engine & Decision Simulator** with sub-second BFD failover, Ansible/RESTCONF automation payload code viewer, SevOne SNMP Traps & Telemetry simulation, Route Reflector (RR) topology with R4 and R5, and MP-BGP VPNv4 VRF multi-tenancy. All documentation is stored in [`bgp_simulator_docs/`](file:///bgp_simulator_docs/).
 
 ---
 
