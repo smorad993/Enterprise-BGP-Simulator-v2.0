@@ -9,6 +9,11 @@ __pycache__/
 .vscode/
 .idea/
 
-# Local Tooling
+# Local Tooling & Non-BGP Projects
 .gstack/
 .claude/
+CLAUDE.md
+snmp_engine.py
+vendor_drivers.py
+snmp_simulator_docs/
+discovery_snmp_api_docs/
