@@ -1,0 +1,14 @@
+# Python / Environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE / System
+.DS_Store
+.vscode/
+.idea/
+
+# Local Tooling
+.gstack/
+.claude/

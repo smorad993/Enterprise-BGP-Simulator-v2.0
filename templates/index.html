@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise BGP Simulator v2.0 - BFD, Automation, MP-BGP & Traps</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="bgp-container">
+        <!-- Top Navigation Header -->
+        <header class="top-header">
+            <div class="brand">
+                <div class="brand-icon">🌐</div>
+                <div>
+                    <h1>Enterprise BGP Simulator v2.0</h1>
+                    <p class="subtitle">BFD 50ms Re-convergence, SevOne SNMP Traps, MP-BGP VRFs & Automation Code</p>
+                </div>
+            </div>
+
+            <div class="ad-badges">
+                <div class="badge bfd-badge">⚡ BFD Active (50ms)</div>
+                <div class="badge ad-ebgp">eBGP AD = 20</div>
+                <div class="badge ad-ibgp">iBGP AD = 200</div>
+                <button id="btnResetBgp" class="btn btn-secondary">Reset Topology</button>
+            </div>
+        </header>
+
+        <!-- Control Toolbar: Policy Builder & Address Family Selector -->
+        <section class="card toolbar-card">
+            <div class="toolbar-section">
+                <h3>⚙️ Policy Controls & MP-BGP Address Family</h3>
+                <div class="policy-controls">
+                    <div class="control-group">
+                        <label for="selectRouterPolicy">Target Router</label>
+                        <select id="selectRouterPolicy">
+                            <option value="R1">R1 (AS 100 RR)</option>
+                            <option value="R2">R2 (AS 200)</option>
+                            <option value="R3">R3 (AS 300)</option>
+                            <option value="R4">R4 (AS 100 Client)</option>
+                            <option value="R5">R5 (AS 100 Client)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="selectAddrFamily">Address Family</label>
+                        <select id="selectAddrFamily">
+                            <option value="ipv4">IPv4 Unicast</option>
+                            <option value="vpnv4">VPNv4 MP-BGP (VRFs)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="selectPrepend">AS-Path Prepend</label>
+                        <select id="selectPrepend">
+                            <option value="0">None (Standard)</option>
+                            <option value="1">+1 Prepend (AS 100)</option>
+                            <option value="2">+2 Prepend (AS 100 100)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="selectLocalPref">Local Preference</label>
+                        <select id="selectLocalPref">
+                            <option value="100">100 (Default)</option>
+                            <option value="200">200 (High Egress)</option>
+                            <option value="50">50 (Low Egress)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="selectNextHopSelf">R1 next-hop-self for iBGP</label>
+                        <select id="selectNextHopSelf">
+                            <option value="false">Disabled (Inaccessible Next-Hop)</option>
+                            <option value="true">Enabled (40.1.1.1 / 50.1.1.1)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="toolbar-section fault-section">
+                <h3>🚨 Fault Injection & Automation Code</h3>
+                <div class="fault-buttons">
+                    <button class="btn btn-automation" id="btnOpenAutomation">🛠 View Ansible & RESTCONF Code</button>
+                    <button class="btn btn-fault" id="btnFaultAsMismatch">Inject AS Mismatch</button>
+                    <button class="btn btn-fault" id="btnFaultMd5">Inject MD5 Auth Failure</button>
+                    <button class="btn btn-fault" id="btnClearFaults">Clear Faults</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Topology Canvas & Packet Stream -->
+        <section class="topology-section">
+            <div class="card canvas-card">
+                <div class="canvas-header">
+                    <h2>Interactive Route Reflector Topology Graph (AS 100 / 200 / 300)</h2>
+                    <span class="hint">BFD (50ms Echo) Enabled • Click links to test instant reconvergence</span>
+                </div>
+                
+                <!-- SVG Network Topology (Updated with R5 and BFD paths) -->
+                <div class="svg-wrapper">
+                    <svg id="topologySvg" viewBox="0 0 920 540">
+                        <!-- AS 100 Cloud (Orange) -->
+                        <ellipse cx="230" cy="250" rx="195" ry="180" class="as-cloud as-100" />
+                        <text x="230" y="105" class="as-label">AS 100 (RR Cluster 1.1.1.1)</text>
+
+                        <!-- AS 200 Cloud (Green) -->
+                        <ellipse cx="710" cy="190" rx="145" ry="120" class="as-cloud as-200" />
+                        <text x="710" y="105" class="as-label">AS 200</text>
+
+                        <!-- AS 300 Cloud (Pink/Purple) -->
+                        <ellipse cx="530" cy="410" rx="150" ry="105" class="as-cloud as-300" />
+                        <text x="530" y="490" class="as-label">AS 300</text>
+
+                        <!-- Links between Routers -->
+                        <line id="link-R1-R2" x1="280" y1="180" x2="630" y2="180" class="link-line ebgp" />
+                        <line id="link-R1-R3" x1="280" y1="210" x2="450" y2="360" class="link-line ebgp" />
+                        <line id="link-R2-R3" x1="640" y1="220" x2="540" y2="360" class="link-line ebgp" />
+                        <line id="link-R1-R4" x1="230" y1="210" x2="130" y2="330" class="link-line ibgp" />
+                        <line id="link-R1-R5" x1="250" y1="210" x2="280" y2="340" class="link-line ibgp" />
+
+                        <!-- Router Nodes -->
+                        <!-- R1 (Route Reflector) -->
+                        <g id="node-R1" class="router-node active-router" transform="translate(250, 180)">
+                            <circle r="34" class="router-circle rr-master" />
+                            <text y="5" class="router-name">R1 (RR)</text>
+                            <text y="-44" class="router-lo">Lo 1.1.1.1/32</text>
+                            <text x="35" y="-5" class="int-label">10.1.1.1 (s1/0)</text>
+                            <text x="15" y="42" class="int-label">20.1.1.1 (s1/1)</text>
+                        </g>
+
+                        <!-- R2 -->
+                        <g id="node-R2" class="router-node" transform="translate(660, 180)">
+                            <circle r="32" class="router-circle" />
+                            <text y="5" class="router-name">R2</text>
+                            <text y="-42" class="router-lo">Lo0 2.2.2.2/32</text>
+                            <text x="-110" y="-5" class="int-label">10.1.1.2 (s1/0)</text>
+                            <text x="5" y="45" class="int-label">30.1.1.1 (s1/1)</text>
+                        </g>
+
+                        <!-- R3 -->
+                        <g id="node-R3" class="router-node" transform="translate(490, 380)">
+                            <circle r="32" class="router-circle" />
+                            <text y="5" class="router-name">R3</text>
+                            <text y="52" class="router-lo">Lo 3.3.3.3/24</text>
+                            <text x="-105" y="-15" class="int-label">20.1.1.2 (s1/0)</text>
+                            <text x="35" y="-15" class="int-label">30.1.1.2 (s1/1)</text>
+                        </g>
+
+                        <!-- R4 (RR Client) -->
+                        <g id="node-R4" class="router-node" transform="translate(120, 350)">
+                            <circle r="26" class="router-circle rr-client" />
+                            <text y="4" class="router-name">R4</text>
+                            <text x="-40" y="-32" class="router-lo">R4 (Client)</text>
+                            <text x="-15" y="40" class="int-label">40.1.1.2 (s1/0)</text>
+                        </g>
+
+                        <!-- R5 (RR Client) -->
+                        <g id="node-R5" class="router-node" transform="translate(280, 360)">
+                            <circle r="26" class="router-circle rr-client" />
+                            <text y="4" class="router-name">R5</text>
+                            <text x="15" y="-12" class="router-lo">R5 (Client)</text>
+                            <text x="-15" y="40" class="int-label">50.1.1.2 (s1/0)</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Link Toggle Controls -->
+                <div class="link-controls">
+                    <span class="control-label">Link BFD Controls:</span>
+                    <button class="btn btn-sm" id="btnToggleR1R2">Toggle R1-R2 (10.1.1.0/24)</button>
+                    <button class="btn btn-sm" id="btnToggleR1R3">Toggle R1-R3 (20.1.1.0/24)</button>
+                    <button class="btn btn-sm" id="btnToggleR2R3">Toggle R2-R3 (30.1.1.0/24)</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Router Console Inspector & SevOne Telemetry Streams -->
+        <section class="console-section">
+            <div class="card console-card">
+                <div class="console-header">
+                    <div class="router-selector">
+                        <span class="label">Select Router Console:</span>
+                        <button class="tab-btn active" data-router="R1">R1 (RR)</button>
+                        <button class="tab-btn" data-router="R2">R2 (AS 200)</button>
+                        <button class="tab-btn" data-router="R3">R3 (AS 300)</button>
+                        <button class="tab-btn" data-router="R4">R4 (Client)</button>
+                        <button class="tab-btn" data-router="R5">R5 (Client)</button>
+                    </div>
+                    <div class="cli-command-tabs">
+                        <button class="cmd-btn active" data-cmd="summary">show ip bgp summary</button>
+                        <button class="cmd-btn" data-cmd="bgp">show ip bgp</button>
+                        <button class="cmd-btn" data-cmd="route">show ip route bgp</button>
+                        <button class="cmd-btn" data-cmd="vpnv4">show ip bgp vpnv4 (VRFs)</button>
+                    </div>
+                </div>
+
+                <div class="cli-output-window">
+                    <div class="cli-prompt" id="cliPrompt">R1# show ip bgp summary</div>
+                    <pre id="cliOutput" class="cli-text">Loading BGP Summary Table...</pre>
+                </div>
+            </div>
+
+            <!-- SevOne Traps & Live Packet Stream -->
+            <div class="card telemetry-card">
+                <div class="stream-header">
+                    <h3>📡 SevOne SNMP Traps (RFC 1657) & Telemetry Stream</h3>
+                    <button class="btn btn-sm" id="btnOpenTieBreaker">🔍 Open 10-Step Tie-Breaker</button>
+                </div>
+                <div class="stream-list" id="trapList">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Automation Code Modal (Ansible & RESTCONF) -->
+    <div class="modal-backdrop" id="modalAutomation">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>🛠 Infrastructure Automation Code Payload (Ansible & RESTCONF)</h3>
+                <button class="modal-close" id="btnCloseAutomation">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="code-tabs">
+                    <button class="code-tab-btn active" id="btnTabAnsible">Ansible Playbook (YAML)</button>
+                    <button class="code-tab-btn" id="btnTabRestconf">RESTCONF Payload (JSON)</button>
+                </div>
+                <pre id="codePayloadDisplay" class="code-display">Loading automation code...</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tie-Breaker Breakdown Modal -->
+    <div class="modal-backdrop" id="modalTieBreaker">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>🔍 BGP 10-Step Best-Path Decision Tie-Breaker Evaluator</h3>
+                <button class="modal-close" id="btnCloseModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">Evaluating competing paths to prefix <strong>2.2.2.2/32</strong> on <strong>R1</strong>:</p>
+                <table class="tie-breaker-table">
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th>BGP Tie-Breaker Rule</th>
+                            <th>Path via R2 (10.1.1.2)</th>
+                            <th>Path via R3 (20.1.1.2)</th>
+                            <th>Winner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>Highest Weight (Cisco proprietary)</td><td>0</td><td>0</td><td>Tie</td></tr>
+                        <tr><td>2</td><td>Highest Local Preference</td><td><span id="tbLocPref1">100</span></td><td>100</td><td id="tbLocPrefWinner">Tie</td></tr>
+                        <tr><td>3</td><td>Locally Originated (0.0.0.0)</td><td>No</td><td>No</td><td>Tie</td></tr>
+                        <tr class="highlight-row"><td>4</td><td>Shortest AS-Path Length</td><td><span id="tbPath1">[200]</span> (Len: 1)</td><td><span id="tbPath2">[300, 200]</span> (Len: 2)</td><td class="winner-cell" id="tbAsPathWinner">★ Path via R2</td></tr>
+                        <tr><td>5</td><td>Lowest Origin Type (IGP &lt; EGP &lt; ?)</td><td>IGP (i)</td><td>IGP (i)</td><td>Tie</td></tr>
+                        <tr><td>6</td><td>Lowest MED (Multi-Exit Discriminator)</td><td>0</td><td>0</td><td>Tie</td></tr>
+                        <tr><td>7</td><td>eBGP over iBGP Path (AD 20 vs 200)</td><td>eBGP</td><td>eBGP</td><td>Tie</td></tr>
+                        <tr><td>8</td><td>Lowest IGP Metric to Next-Hop</td><td>0</td><td>0</td><td>Tie</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
